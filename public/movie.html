@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <meta name="theme-color" content="#060709"/>
+  <title>Movie — SkyluxMovies</title>
+  <meta name="robots" content="index, follow"/>
+  <link rel="stylesheet" href="/style.css"/>
+  <link rel="manifest" href="/manifest.json"/>
+  <style>
+  /* ── Backdrop ─────────────────────────────────────────────────── */
+  .backdrop {
+    position: fixed; inset: 0; z-index: 0; overflow: hidden;
+  }
+  .backdrop-img {
+    width: 100%; height: 100%; object-fit: cover;
+    filter: blur(50px) saturate(0.35) brightness(0.2);
+    transform: scale(1.1); opacity: 0; transition: opacity 1s ease;
+  }
+  .backdrop-img.loaded { opacity: 1; }
+  .backdrop-shade {
+    position: absolute; inset: 0;
+    background: linear-gradient(to bottom, rgba(6,7,9,0.5) 0%, rgba(6,7,9,0.3) 30%, rgba(6,7,9,0.7) 65%, rgba(6,7,9,1) 100%);
+  }
+
+  /* ── Page ─────────────────────────────────────────────────────── */
+  .movie-page { position: relative; z-index: 1; min-height: 100svh; padding-bottom: 30px; }
+
+  /* ── Topbar ───────────────────────────────────────────────────── */
+  .movie-topbar {
+    position: sticky; top: 0; z-index: 100;
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px;
+    background: rgba(6,7,9,0.8); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .topbar-title {
+    flex: 1; font-size: 0.88rem; font-weight: 500; color: var(--text-2);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  /* ── Content wrapper ──────────────────────────────────────────── */
+  .movie-wrap {
+    max-width: 600px; margin: 0 auto;
+    padding: 24px 20px 40px;
+  }
+
+  /* ── Hero row ─────────────────────────────────────────────────── */
+  .movie-hero { display: flex; gap: 16px; margin-bottom: 22px; align-items: flex-start; }
+  .poster-wrap {
+    flex-shrink: 0; width: 110px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06);
+    border-radius: var(--r-sm); overflow: hidden;
+  }
+  .movie-poster { width: 100%; aspect-ratio: 2/3; object-fit: cover; background: var(--surface2); display: block; }
+  .movie-info { flex: 1; min-width: 0; }
+  .movie-title {
+    font-family: 'Cinzel', serif; font-weight: 700; font-size: 1.15rem;
+    color: var(--text); line-height: 1.25; margin-bottom: 8px;
+  }
+  .movie-meta-row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .meta-tag { font-size: 0.75rem; color: var(--text-2); }
+  .meta-sep { width: 3px; height: 3px; border-radius: 50%; background: var(--text-4); flex-shrink: 0; }
+  .genre-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+
+  /* ── Ratings Row ──────────────────────────────────────────────── */
+  .ratings-row {
+    display: flex; align-items: center; gap: 16px;
+    padding: 18px; margin-bottom: 20px;
+    border-radius: var(--r);
+  }
+  .ratings-divider { width: 1px; height: 50px; background: rgba(255,255,255,0.07); flex-shrink: 0; }
+  .rating-item { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+  .rating-icon { font-size: 1.2rem; }
+  .rating-val-text { font-size: 1rem; font-weight: 700; color: var(--text); font-family: 'Cinzel', serif; }
+  .rating-label-text { font-size: 0.62rem; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.08em; }
+
+  /* ── Trailer Button ───────────────────────────────────────────── */
+  .trailer-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 8px 14px; border-radius: 100px;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+    font-size: 0.8rem; color: var(--text-2); transition: var(--t);
+    margin-bottom: 20px;
+  }
+  .trailer-btn:hover { color: var(--accent-l); border-color: var(--accent); background: var(--accent-dim); }
+
+  /* ── Synopsis ─────────────────────────────────────────────────── */
+  .synopsis { margin-bottom: 22px; }
+  .synopsis-text {
+    font-size: 0.87rem; color: var(--text-2); line-height: 1.7; font-weight: 300;
+  }
+  .synopsis-toggle {
+    font-size: 0.78rem; color: var(--accent); background: none; border: none;
+    padding: 4px 0; margin-top: 6px; transition: var(--t);
+  }
+
+  /* ── Cast ─────────────────────────────────────────────────────── */
+  .cast-section { margin-bottom: 24px; }
+
+  /* ── Quality Picker ───────────────────────────────────────────── */
+  .quality-section { margin-bottom: 20px; }
+  .quality-select-wrap { position: relative; }
+  .quality-select {
+    width: 100%; padding: 13px 40px 13px 16px !important;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: var(--r-sm); color: var(--text); font-size: 0.92rem;
+    cursor: pointer;
+  }
+  .quality-arrow {
+    position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+    color: var(--text-3); pointer-events: none;
+  }
+
+  /* ── Quality Info Card ────────────────────────────────────────── */
+  .qinfo-card {
+    display: none; margin-top: 10px; padding: 14px 16px;
+    border-radius: var(--r-sm);
+  }
+  .qinfo-card.show { display: block; }
+  .qinfo-grid { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 10px; }
+  .qinfo-item { display: flex; flex-direction: column; gap: 2px; }
+  .qinfo-label { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-4); }
+  .qinfo-val { font-size: 0.82rem; font-weight: 600; color: var(--text); }
+
+  /* ── Seed Meter ───────────────────────────────────────────────── */
+  .seed-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .seed-icon { font-size: 1rem; }
+  .seed-label { font-size: 0.82rem; font-weight: 600; }
+  .seed-count { font-size: 0.72rem; color: var(--text-3); margin-left: auto; }
+  .seed-desc { font-size: 0.76rem; color: var(--text-2); line-height: 1.5; margin-bottom: 0; }
+
+  /* ── Action Buttons ───────────────────────────────────────────── */
+  .action-section { display: none; flex-direction: column; gap: 10px; margin-bottom: 24px; }
+  .action-section.show { display: flex; }
+  .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .action-note { font-size: 0.7rem; color: var(--text-4); text-align: center; }
+
+  /* ── SPlayer Guide ────────────────────────────────────────────── */
+  .splayer-guide {
+    border-radius: var(--r); overflow: hidden; margin-bottom: 24px;
+  }
+  .splayer-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 16px; cursor: pointer;
+    background: linear-gradient(135deg, rgba(212,146,42,0.1), rgba(212,146,42,0.04));
+    border: 1px solid rgba(212,146,42,0.2); border-radius: var(--r);
+    transition: var(--t);
+  }
+  .splayer-header.open { border-radius: var(--r) var(--r) 0 0; border-bottom-color: transparent; }
+  .splayer-body {
+    display: none; padding: 16px;
+    background: rgba(212,146,42,0.04); border: 1px solid rgba(212,146,42,0.15);
+    border-top: none; border-radius: 0 0 var(--r) var(--r);
+  }
+  .splayer-body.open { display: block; }
+  .splayer-step { display: flex; gap: 10px; margin-bottom: 10px; align-items: flex-start; }
+  .step-num {
+    width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0;
+    background: var(--accent); color: #060709;
+    font-size: 0.65rem; font-weight: 800;
+    display: flex; align-items: center; justify-content: center; margin-top: 1px;
+  }
+  .step-text { font-size: 0.78rem; color: var(--text-2); line-height: 1.55; }
+
+  /* ── Stream Section ───────────────────────────────────────────── */
+  .stream-section { display: none; margin-bottom: 24px; }
+  .stream-section.show { display: block; }
+  .stream-frame-wrap {
+    position: relative; width: 100%; aspect-ratio: 16/9;
+    border-radius: var(--r-sm); overflow: hidden;
+    background: #000; box-shadow: var(--shadow);
+  }
+  .stream-frame-wrap iframe {
+    position: absolute; inset: 0; width: 100%; height: 100%; border: none;
+  }
+  .stream-note { font-size: 0.72rem; color: var(--text-3); text-align: center; margin-top: 8px; }
+  .stream-server-row {
+    display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;
+  }
+  .server-btn {
+    padding: 6px 14px; border-radius: 100px; font-size: 0.76rem; font-weight: 500;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text-2); transition: var(--t); cursor: pointer;
+  }
+  .server-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent-l); }
+
+  /* ── Page Loading ─────────────────────────────────────────────── */
+  .page-loader {
+    position: fixed; inset: 0; z-index: 999;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px; background: var(--bg);
+  }
+
+  /* ── Desktop ──────────────────────────────────────────────────── */
+  @media (min-width: 600px) {
+    .poster-wrap { width: 140px; }
+    .movie-title { font-size: 1.4rem; }
+    .action-grid { grid-template-columns: 1fr 1fr; }
+  }
+  </style>
+</head>
+<body>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+
+<!-- Backdrop -->
+<div class="backdrop">
+  <img class="backdrop-img" id="backdropImg" alt=""/>
+  <div class="backdrop-shade"></div>
+</div>
+
+<!-- Page Loader -->
+<div class="page-loader" id="pageLoader">
+  <div class="spinner"></div>
+  <span style="font-size:0.85rem;color:var(--text-3)">Loading movie…</span>
+</div>
+
+<!-- Page -->
+<div class="movie-page" id="moviePage" style="display:none">
+
+  <!-- Topbar -->
+  <div class="movie-topbar">
+    <button class="back-btn" onclick="history.back()">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+      Back
+    </button>
+    <span class="topbar-title" id="topbarTitle"></span>
+    <a href="/" class="logo">
+      <svg class="logo-mark sm" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs><linearGradient id="lg2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#f0b84a"/><stop offset="100%" stop-color="#b8722a"/></linearGradient></defs>
+        <path d="M20 3L36 20L20 37L4 20Z" stroke="url(#lg2)" stroke-width="1.5" fill="none"/>
+        <polygon points="16,14 28,20 16,26" fill="url(#lg2)"/>
+      </svg>
+    </a>
+  </div>
+
+  <!-- Content -->
+  <div class="movie-wrap">
+
+    <!-- Hero Row -->
+    <div class="movie-hero reveal" id="movieHero">
+      <div class="poster-wrap">
+        <img class="movie-poster" id="posterImg" alt=""/>
+      </div>
+      <div class="movie-info">
+        <h1 class="movie-title" id="movieTitle"></h1>
+        <div class="movie-meta-row" id="metaRow"></div>
+        <div class="genre-chips" id="genreChips"></div>
+        <div style="margin-top:10px" id="trailerRow"></div>
+      </div>
+    </div>
+
+    <!-- Ratings Row -->
+    <div class="glass ratings-row reveal" id="ratingsRow">
+      <!-- Circular rating -->
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+        <div class="rating-circle" id="ratingCircle">
+          <svg width="72" height="72" viewBox="0 0 72 72">
+            <circle class="rating-bg" cx="36" cy="36" r="28" stroke-width="4"/>
+            <circle class="rating-arc" id="ratingArc" cx="36" cy="36" r="28" stroke-width="4" stroke="var(--accent-l)" stroke-dasharray="175.9" stroke-dashoffset="175.9"/>
+          </svg>
+          <div class="rating-val">
+            <span class="num" id="ratingNum">—</span>
+            <span class="den">/10</span>
+          </div>
+        </div>
+        <span style="font-size:0.62rem;color:var(--text-3);text-transform:uppercase;letter-spacing:0.1em" id="voteCount"></span>
+      </div>
+
+      <div class="ratings-divider"></div>
+
+      <!-- Stats column -->
+      <div style="flex:1;display:flex;flex-direction:column;gap:10px">
+        <div class="rating-item" style="align-items:flex-start">
+          <span class="rating-label-text">Status</span>
+          <span class="rating-val-text" id="movieStatus" style="font-size:0.85rem;font-family:Outfit,sans-serif">—</span>
+        </div>
+        <div class="rating-item" style="align-items:flex-start">
+          <span class="rating-label-text">Runtime</span>
+          <span class="rating-val-text" id="movieRuntime" style="font-size:0.85rem;font-family:Outfit,sans-serif">—</span>
+        </div>
+        <div class="rating-item" style="align-items:flex-start">
+          <span class="rating-label-text">Language</span>
+          <span class="rating-val-text" id="movieLang" style="font-size:0.85rem;font-family:Outfit,sans-serif">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Synopsis -->
+    <div class="synopsis reveal">
+      <p class="sec-label">Synopsis</p>
+      <p class="synopsis-text" id="synopsisText"></p>
+    </div>
+
+    <!-- Cast -->
+    <div class="cast-section reveal" id="castSection" style="display:none">
+      <p class="sec-label" style="margin-bottom:12px">Cast</p>
+      <div class="cast-row" id="castRow"></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Stream Section (VidSrc) -->
+    <div class="stream-section reveal" id="streamSection">
+      <p class="sec-label" style="margin-bottom:10px">▶ Stream Now</p>
+      <div class="stream-server-row" id="serverRow"></div>
+      <div class="stream-frame-wrap" id="streamFrameWrap">
+        <iframe id="streamFrame" allowfullscreen allow="autoplay; fullscreen; picture-in-picture"></iframe>
+      </div>
+      <p class="stream-note">Streaming via VidSrc · If one server fails, try another</p>
+    </div>
+
+    <div class="divider" id="dividerAfterStream"></div>
+
+    <!-- SPlayer Guide -->
+    <div class="splayer-guide reveal" id="splayerGuide">
+      <div class="splayer-header" id="splayerHeader" onclick="toggleSplayer()">
+        <span style="font-size:1.1rem">📱</span>
+        <div style="flex:1">
+          <p style="font-size:0.88rem;font-weight:600;color:var(--accent-l);margin:0">Download via SPlayer</p>
+          <p style="font-size:0.7rem;color:var(--text-3);margin:0">Free app · Fastest download method</p>
+        </div>
+        <a href="https://play.google.com/store/apps/details?id=com.ttee.leeplayer" target="_blank"
+          onclick="event.stopPropagation()"
+          style="background:linear-gradient(135deg,#f0b84a,#d4922a);color:#060709;font-weight:700;font-size:0.7rem;padding:6px 11px;border-radius:8px;text-decoration:none;flex-shrink:0">
+          Install
+        </a>
+        <svg id="splayerChevron" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;transition:transform 0.3s"><path d="m6 9 6 6 6-6"/></svg>
+      </div>
+      <div class="splayer-body" id="splayerBody">
+        <div class="splayer-step"><div class="step-num">1</div><p class="step-text">When SPlayer opens, you'll see an <strong>"Add torrent"</strong> screen with checkboxes.</p></div>
+        <div class="splayer-step"><div class="step-num">2</div><p class="step-text"><strong style="color:var(--success)">✅ Check "Sequential download"</strong> — downloads start-to-end so you can watch while it loads.</p></div>
+        <div class="splayer-step"><div class="step-num">3</div><p class="step-text"><strong style="color:var(--success)">✅ Keep "Start torrent" checked</strong> — starts immediately.</p></div>
+        <div class="splayer-step"><div class="step-num">4</div><p class="step-text">Tap the <strong>✓ checkmark (top right)</strong> to confirm. Movie starts in seconds.</p></div>
+        <div class="splayer-step" style="margin-bottom:0"><div class="step-num">5</div><p class="step-text"><strong>Leave "Ignore free space" unchecked</strong> unless your storage is low.</p></div>
+        <div style="margin-top:12px;padding:10px 12px;background:rgba(212,146,42,0.06);border-radius:8px;border-left:3px solid var(--accent)">
+          <p style="font-size:0.73rem;color:var(--text-2);line-height:1.55;margin:0"><strong style="color:var(--accent-l)">💡 Speed tip:</strong> Popular recent movies have many peers = fast. New releases with few peers = slower. This is normal for all peer-to-peer downloads.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quality Picker -->
+    <div class="quality-section reveal">
+      <p class="sec-label">Select Download Quality</p>
+      <div class="quality-select-wrap">
+        <select class="quality-select" id="qualitySelect" onchange="onQualityChange()">
+          <option value="">— Choose quality —</option>
+        </select>
+        <span class="quality-arrow">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </span>
+      </div>
+      <div class="glass qinfo-card" id="qinfoCard">
+        <div class="qinfo-grid" id="qinfoGrid"></div>
+        <div id="seedInfo"></div>
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-section" id="actionSection">
+      <div class="action-grid">
+        <button class="btn btn-primary" onclick="doDownload()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download
+        </button>
+        <button class="btn btn-ghost" onclick="openStream()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Stream
+        </button>
+      </div>
+      <p class="action-note">Download opens SPlayer · Stream uses browser player above</p>
+    </div>
+
+    <!-- YTS Not Found Notice -->
+    <div id="ytsNotFound" style="display:none;margin-bottom:20px;padding:14px 16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:var(--r-sm)">
+      <p style="font-size:0.8rem;color:var(--text-3);line-height:1.55">
+        <span style="color:var(--text-2);font-weight:600">⚠️ Download not available</span><br>
+        This title wasn't found on our download source. Try searching by title for alternative results.
+      </p>
+    </div>
+
+  </div>
+</div>
+
+<!-- Install Prompt -->
+<div id="installOverlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(6,7,9,0.92);backdrop-filter:blur(20px);display:none;align-items:center;justify-content:center;padding:24px">
+  <div style="max-width:360px;width:100%;background:rgba(255,248,230,0.04);border:1px solid rgba(212,146,42,0.2);border-radius:20px;padding:28px 24px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.6)">
+    <div style="font-size:2.5rem;margin-bottom:12px">🎬</div>
+    <h3 style="font-family:'Cinzel',serif;color:#f0b84a;font-size:1.05rem;margin-bottom:8px">SPlayer Required</h3>
+    <p style="font-size:0.82rem;color:var(--text-2);line-height:1.6;margin-bottom:16px">SkyluxMovies uses <strong style="color:var(--text)">SPlayer</strong> to stream and download movies directly on your device — no waiting, no storage waste.</p>
+    <p style="font-size:0.75rem;color:var(--text-3);margin-bottom:16px">Free · No sign-up · Works instantly with magnet links</p>
+    <a href="https://play.google.com/store/apps/details?id=com.ttee.leeplayer" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,#f0b84a,#d4922a);color:#060709;font-weight:700;font-size:0.92rem;padding:14px;border-radius:12px;text-decoration:none;margin-bottom:10px">Install SPlayer — Free</a>
+    <button onclick="document.getElementById('installOverlay').style.display='none'" style="width:100%;padding:11px;border-radius:10px;background:transparent;border:1px solid rgba(255,255,255,0.08);color:var(--text-3);font-size:0.82rem;cursor:pointer">Cancel</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+const IMG = 'https://image.tmdb.org/t/p';
+const SPLAYER = 'com.ttee.leeplayer';
+const SPLAYER_STORE = 'https://play.google.com/store/apps/details?id=com.ttee.leeplayer';
+
+const params = new URLSearchParams(location.search);
+const TMDB_ID = params.get('tmdb');
+const YTS_ID = params.get('id');
+const INIT_MODE = params.get('mode'); // 'stream' or 'download' from home page CTA
+
+const haptic = ms => navigator.vibrate?.(ms);
+
+function toast(msg) {
+  const wrap = document.getElementById('toastWrap');
+  const el = document.createElement('div');
+  el.className = 'toast'; el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+// ── Scroll Reveal ─────────────────────────────────────────────────
+const revealObs = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); revealObs.unobserve(e.target); } });
+}, { threshold: 0.08 });
+
+// ── State ─────────────────────────────────────────────────────────
+let movieData = null;   // TMDB data
+let selectedTorrent = null;
+let currentServer = 0;
+let tmdbId = TMDB_ID;
+
+const VIDSRC_SERVERS = [
+  { name: 'Server 1', url: id => `https://vidsrc.to/embed/movie/${id}` },
+  { name: 'Server 2', url: id => `https://vidsrc.net/embed/movie/?tmdb=${id}` },
+  { name: 'Server 3', url: id => `https://player.videasy.net/movie/${id}` },
+];
+
+// ── Magnet Builder ────────────────────────────────────────────────
+function buildMagnet(hash, title) {
+  const trackers = [
+    'wss://tracker.btorrent.xyz',
+    'wss://tracker.openwebtorrent.com',
+    'wss://tracker.webtorrent.dev',
+    'udp://open.demonii.com:1337/announce',
+    'udp://tracker.openbittorrent.com:80/announce',
+    'udp://tracker.opentrackr.org:1337/announce',
+    'udp://exodus.desync.com:6969/announce',
+    'udp://tracker.torrent.eu.org:451/announce',
+  ].map(t => `&tr=${encodeURIComponent(t)}`).join('');
+  return `magnet:?xt=urn:btih:${hash}&dn=${encodeURIComponent(title)}${trackers}`;
+}
+
+// ── Seed Info ─────────────────────────────────────────────────────
+function getSeedInfo(s) {
+  if (s === 0) return { icon:'⛔', label:'Unavailable', color:'var(--danger)', desc:`No active peers. Try a different quality.` };
+  if (s <= 4)  return { icon:'🔴', label:'Very Slow',   color:'var(--danger)', desc:`${s} peer${s>1?'s':''} — slow, may stall. Try different quality if available.` };
+  if (s <= 14) return { icon:'🟡', label:'Moderate',    color:'var(--warn)',   desc:`${s} peers — will work, start may be slow. Keep app open.` };
+  if (s <= 49) return { icon:'🟢', label:'Good',        color:'#8bc34a',       desc:`${s} peers — solid experience expected.` };
+  return              { icon:'⚡', label:'Fast & Reliable', color:'var(--success)', desc:`${s} peers — popular title, expect fast speeds.` };
+}
+
+// ── Circular Rating ───────────────────────────────────────────────
+function setRating(rating) {
+  const val = parseFloat(rating) || 0;
+  const circ = 175.9; // 2 * pi * 28
+  const offset = circ * (1 - val / 10);
+  const arc = document.getElementById('ratingArc');
+  const num = document.getElementById('ratingNum');
+
+  // Color based on rating
+  const color = val >= 7.5 ? 'var(--success)' : val >= 6 ? 'var(--accent-l)' : val >= 5 ? 'var(--warn)' : 'var(--danger)';
+  arc.style.stroke = color;
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => { arc.style.strokeDashoffset = offset; });
+  });
+
+  num.textContent = val.toFixed(1);
+  num.style.color = color;
+}
+
+// ── Stream ────────────────────────────────────────────────────────
+function buildServerRow(id) {
+  const row = document.getElementById('serverRow');
+  row.innerHTML = '';
+  VIDSRC_SERVERS.forEach((s, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'server-btn' + (i === 0 ? ' active' : '');
+    btn.textContent = s.name;
+    btn.onclick = () => {
+      haptic([6]);
+      document.querySelectorAll('.server-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentServer = i;
+      loadStream(id, i);
+    };
+    row.appendChild(btn);
+  });
+}
+
+function loadStream(id, serverIdx = 0) {
+  const frame = document.getElementById('streamFrame');
+  frame.src = VIDSRC_SERVERS[serverIdx].url(id);
+}
+
+function openStream() {
+  haptic([10]);
+  const streamSec = document.getElementById('streamSection');
+  streamSec.classList.add('show');
+  streamSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ── Quality Change ────────────────────────────────────────────────
+function onQualityChange() {
+  haptic([6]);
+  const sel = document.getElementById('qualitySelect');
+  const idx = sel.value;
+  const card = document.getElementById('qinfoCard');
+  const actionSec = document.getElementById('actionSection');
+
+  if (!idx || !movieData?.yts_torrents) {
+    card.classList.remove('show');
+    actionSec.classList.remove('show');
+    selectedTorrent = null;
+    return;
+  }
+
+  selectedTorrent = movieData.yts_torrents[parseInt(idx)];
+  const s = selectedTorrent;
+  const seeds = s.seeds || 0;
+  const si = getSeedInfo(seeds);
+
+  document.getElementById('qinfoGrid').innerHTML = `
+    <div class="qinfo-item"><span class="qinfo-label">Size</span><span class="qinfo-val">${s.size}</span></div>
+    <div class="qinfo-item"><span class="qinfo-label">Codec</span><span class="qinfo-val">${s.video_codec || '—'}</span></div>
+    <div class="qinfo-item"><span class="qinfo-label">Audio</span><span class="qinfo-val">${s.audio_channels || '—'}</span></div>
+    <div class="qinfo-item"><span class="qinfo-label">Type</span><span class="qinfo-val">${s.type || '—'}</span></div>
+  `;
+
+  document.getElementById('seedInfo').innerHTML = `
+    <div style="padding-top:10px;border-top:1px solid rgba(255,255,255,0.05)">
+      <div class="seed-row">
+        <span class="seed-icon">${si.icon}</span>
+        <span class="seed-label" style="color:${si.color}">${si.label}</span>
+        <span class="seed-count">${seeds} seeds</span>
+      </div>
+      <p class="seed-desc">${si.desc}</p>
+      <div style="margin-top:8px;padding:8px 10px;background:rgba(212,146,42,0.05);border-radius:7px;border-left:2px solid var(--accent)">
+        <p style="font-size:0.71rem;color:var(--text-3);line-height:1.5;margin:0">💡 Remember: <strong style="color:var(--success)">Check "Sequential download"</strong> in SPlayer for best experience.</p>
+      </div>
+    </div>
+  `;
+
+  card.classList.add('show');
+
+  if (seeds === 0) {
+    actionSec.classList.remove('show');
+    toast('⛔ No peers available — try another quality');
+  } else {
+    actionSec.classList.add('show');
+    if (seeds <= 4) toast('⚠️ Very few peers — download may be slow');
+  }
+}
+
+// ── Download via SPlayer ──────────────────────────────────────────
+function doDownload() {
+  if (!selectedTorrent) { toast('Select a quality first'); return; }
+  haptic([10, 30, 10]);
+
+  const title = movieData.title || movieData.original_title || 'Movie';
+  const magnet = buildMagnet(selectedTorrent.hash, title);
+  const intent = `intent:${magnet}#Intent;package=${SPLAYER};end`;
+
+  const onBlur = () => clearTimeout(fallback);
+  window.addEventListener('blur', onBlur, { once: true });
+
+  const fallback = setTimeout(() => {
+    window.removeEventListener('blur', onBlur);
+    document.getElementById('installOverlay').style.display = 'flex';
+  }, 2000);
+
+  window.location.href = intent;
+  toast('📲 Opening SPlayer…');
+}
+
+// ── SPlayer Guide Toggle ──────────────────────────────────────────
+function toggleSplayer() {
+  const header = document.getElementById('splayerHeader');
+  const body = document.getElementById('splayerBody');
+  const chevron = document.getElementById('splayerChevron');
+  const open = body.classList.toggle('open');
+  header.classList.toggle('open', open);
+  chevron.style.transform = open ? 'rotate(180deg)' : 'rotate(0)';
+}
+
+// ── Render Movie (TMDB data) ──────────────────────────────────────
+function renderMovie() {
+  const m = movieData;
+  document.title = `${m.title} (${m.release_date?.substring(0,4) || ''}) — SkyluxMovies`;
+  document.getElementById('topbarTitle').textContent = m.title;
+
+  // Backdrop
+  const bd = document.getElementById('backdropImg');
+  if (m.backdrop_path) {
+    bd.src = `${IMG}/w1280${m.backdrop_path}`;
+    bd.onload = () => bd.classList.add('loaded');
+  }
+
+  // Poster
+  const poster = document.getElementById('posterImg');
+  poster.src = m.poster_path ? `${IMG}/w500${m.poster_path}` : '';
+  poster.alt = m.title;
+
+  // Title
+  document.getElementById('movieTitle').textContent = m.title;
+
+  // Meta
+  const year = m.release_date?.substring(0,4) || '';
+  const runtime = m.runtime ? `${Math.floor(m.runtime/60)}h ${m.runtime%60}m` : '';
+  const lang = m.original_language?.toUpperCase() || '';
+  document.getElementById('metaRow').innerHTML = [
+    year && `<span class="meta-tag">${year}</span>`,
+    runtime && `<span class="meta-sep"></span><span class="meta-tag">${runtime}</span>`,
+    lang && `<span class="meta-sep"></span><span class="meta-tag">${lang}</span>`,
+  ].filter(Boolean).join('');
+
+  // Genres
+  document.getElementById('genreChips').innerHTML =
+    (m.genres || []).slice(0,3).map(g => `<span class="pill pill-gold">${g.name}</span>`).join('');
+
+  // Trailer
+  const trailer = m.videos?.results?.find(v => v.site === 'YouTube' && v.type === 'Trailer');
+  if (trailer) {
+    document.getElementById('trailerRow').innerHTML = `
+      <a href="https://www.youtube.com/watch?v=${trailer.key}" target="_blank" class="trailer-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M21.543 6.498C22 8.28 22 12 22 12s0 3.72-.457 5.502c-.254.985-.997 1.76-1.938 2.022C17.896 20 12 20 12 20s-5.893 0-7.605-.476c-.945-.266-1.687-1.04-1.938-2.022C2 15.72 2 12 2 12s0-3.72.457-5.502c.254-.985.997-1.76 1.938-2.022C6.107 4 12 4 12 4s5.896 0 7.605.476c.945.266 1.687 1.04 1.938 2.022zM10 15.5l6-3.5-6-3.5v7z"/></svg>
+        Watch Trailer
+      </a>`;
+  }
+
+  // Rating
+  if (m.vote_average) setRating(m.vote_average);
+  else document.getElementById('ratingNum').textContent = 'N/A';
+
+  if (m.vote_count) {
+    document.getElementById('voteCount').textContent = `${(m.vote_count/1000).toFixed(1)}K rated`;
+  }
+
+  // Stats
+  document.getElementById('movieStatus').textContent = m.status || '—';
+  document.getElementById('movieRuntime').textContent = runtime || '—';
+  document.getElementById('movieLang').textContent = m.spoken_languages?.[0]?.english_name || lang || '—';
+
+  // Synopsis
+  document.getElementById('synopsisText').textContent = m.overview || 'No synopsis available.';
+
+  // Cast
+  const cast = m.credits?.cast?.slice(0,10) || [];
+  if (cast.length) {
+    document.getElementById('castSection').style.display = 'block';
+    const row = document.getElementById('castRow');
+    cast.forEach(actor => {
+      const el = document.createElement('div');
+      el.className = 'cast-member';
+      const photo = actor.profile_path ? `${IMG}/w185${actor.profile_path}` : 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56"><rect fill="%23161820" width="56" height="56"/><text x="28" y="34" text-anchor="middle" fill="%232a2825" font-size="20">👤</text></svg>';
+      el.innerHTML = `<img class="cast-photo" src="${photo}" alt="${actor.name}" loading="lazy" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2256%22 height=%2256%22><rect fill=%22%23161820%22 width=%2256%22 height=%2256%22/><text x=%2228%22 y=%2234%22 text-anchor=%22middle%22 fill=%22%232a2825%22 font-size=%2220%22>👤</text></svg>'"/><div class="cast-name">${actor.name}</div>`;
+      row.appendChild(el);
+    });
+  }
+
+  // Stream setup
+  buildServerRow(tmdbId);
+  loadStream(tmdbId, 0);
+  document.getElementById('streamSection').classList.add('show');
+
+  // Show page
+  document.getElementById('pageLoader').style.display = 'none';
+  document.getElementById('moviePage').style.display = 'block';
+  document.querySelectorAll('.reveal').forEach(el => revealObs.observe(el));
+
+  // Auto-trigger mode from home CTA
+  if (INIT_MODE === 'stream') {
+    setTimeout(() => openStream(), 600);
+  }
+}
+
+// ── Load YTS Torrents ─────────────────────────────────────────────
+async function loadYTS(title, year) {
+  try {
+    const res = await fetch(`/api/yts/find?title=${encodeURIComponent(title)}&year=${year || ''}`);
+    const data = await res.json();
+    if (!data.found || !data.movie?.torrents?.length) {
+      document.getElementById('ytsNotFound').style.display = 'block';
+      return;
+    }
+
+    movieData.yts_torrents = data.movie.torrents;
+
+    const sel = document.getElementById('qualitySelect');
+    sel.innerHTML = '<option value="">— Choose quality —</option>';
+    data.movie.torrents.forEach((t, i) => {
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = `${t.quality} (${t.type || 'web'}) · ${t.size} · ${t.seeds} seeds`;
+      sel.appendChild(opt);
+    });
+
+    // Auto-select best quality
+    const best = data.movie.torrents.findIndex(t => t.quality === '1080p') !== -1
+      ? data.movie.torrents.findIndex(t => t.quality === '1080p')
+      : 0;
+    sel.value = best;
+    onQualityChange();
+
+    if (INIT_MODE === 'download') {
+      setTimeout(() => {
+        document.querySelector('.quality-section')?.scrollIntoView({ behavior: 'smooth' });
+      }, 800);
+    }
+
+  } catch {}
+}
+
+// ── Fetch & Render ────────────────────────────────────────────────
+async function fetchByTMDB(id) {
+  const res = await fetch(`/api/tmdb/movie/${id}`);
+  if (!res.ok) throw new Error('TMDB fetch failed');
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+  movieData = data;
+  tmdbId = id;
+  renderMovie();
+  const year = data.release_date?.substring(0,4) || '';
+  await loadYTS(data.title, year);
+}
+
+async function fetchByYTS(id) {
+  const res = await fetch(`/api/movie/${id}`);
+  if (!res.ok) throw new Error('Failed');
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+  const m = data.data.movie;
+
+  // Convert YTS to TMDB-like shape
+  movieData = {
+    title: m.title_long || m.title,
+    overview: m.description_full || m.summary || '',
+    release_date: m.year ? `${m.year}-01-01` : '',
+    runtime: m.runtime || 0,
+    original_language: m.language || 'en',
+    vote_average: parseFloat(m.rating) || 0,
+    vote_count: null,
+    genres: (m.genres || []).map(g => ({ name: g })),
+    poster_path: null,
+    backdrop_path: null,
+    status: 'Released',
+    spoken_languages: [],
+    credits: null,
+    videos: null,
+    yts_torrents: m.torrents || [],
+    _yts_poster: m.large_cover_image || m.medium_cover_image,
+    _yts_bg: m.background_image_original || m.background_image,
+  };
+
+  // Override with YTS images
+  const bd = document.getElementById('backdropImg');
+  if (m.background_image_original) { bd.src = m.background_image_original; bd.onload = () => bd.classList.add('loaded'); }
+  document.getElementById('posterImg').src = m.large_cover_image || m.medium_cover_image || '';
+
+  // Search TMDB for stream ID
+  try {
+    const tr = await fetch(`/api/tmdb/search?q=${encodeURIComponent(m.title)}`);
+    const td = await tr.json();
+    const match = (td.results || []).find(r => String(r.release_date?.substring(0,4)) === String(m.year)) || td.results?.[0];
+    if (match) tmdbId = match.id;
+  } catch {}
+
+  renderMovie();
+
+  // Re-render poster/backdrop with YTS images (renderMovie may have overridden)
+  if (m.large_cover_image) document.getElementById('posterImg').src = m.large_cover_image;
+  if (m.background_image_original) { const b = document.getElementById('backdropImg'); b.src = m.background_image_original; b.onload = () => b.classList.add('loaded'); }
+
+  // Populate quality dropdown
+  const sel = document.getElementById('qualitySelect');
+  sel.innerHTML = '<option value="">— Choose quality —</option>';
+  (m.torrents || []).forEach((t, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = `${t.quality} (${t.type || 'web'}) · ${t.size} · ${t.seeds} seeds`;
+    sel.appendChild(opt);
+  });
+  const best = (m.torrents || []).findIndex(t => t.quality === '1080p');
+  if (best >= 0) { sel.value = best; onQualityChange(); }
+}
+
+// ── Init ──────────────────────────────────────────────────────────
+async function init() {
+  try {
+    if (TMDB_ID) {
+      await fetchByTMDB(TMDB_ID);
+    } else if (YTS_ID) {
+      await fetchByYTS(YTS_ID);
+    } else {
+      throw new Error('No movie ID');
+    }
+  } catch (err) {
+    document.getElementById('pageLoader').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">⚠️</div>
+        <div class="empty-title">${err.message || 'Failed to load'}</div>
+        <button class="btn btn-ghost btn-sm" onclick="history.back()" style="margin-top:12px">← Go Back</button>
+      </div>`;
+  }
+}
+
+init();
+</script>
+<script src="/pwa.js"></script>
+</body>
+</html>

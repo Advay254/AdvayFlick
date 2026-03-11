@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <meta name="theme-color" content="#060709"/>
+  <title>Search — SkyluxMovies</title>
+  <meta name="description" content="Search and discover thousands of movies on SkyluxMovies. Stream free or download instantly."/>
+  <meta name="robots" content="index, follow"/>
+  <link rel="stylesheet" href="/style.css"/>
+  <link rel="manifest" href="/manifest.json"/>
+  <style>
+  .results-page { min-height: 100svh; padding-bottom: 80px; }
+
+  /* ── Search Header ────────────────────────────────────────────── */
+  .results-header {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(6,7,9,0.9); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    padding: 12px 16px;
+  }
+  .results-search-row { display: flex; gap: 10px; align-items: center; }
+  .results-search-row .input-wrap { flex: 1; }
+  .results-search-row input { border-radius: var(--r); }
+
+  /* ── Sort Bar ─────────────────────────────────────────────────── */
+  .sort-bar {
+    display: flex; gap: 8px; overflow-x: auto; padding: 10px 16px;
+    scrollbar-width: none; border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .sort-bar::-webkit-scrollbar { display: none; }
+  .sort-btn {
+    flex-shrink: 0; padding: 6px 14px; border-radius: 100px; font-size: 0.76rem; font-weight: 500;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
+    color: var(--text-2); transition: var(--t); cursor: pointer; white-space: nowrap;
+  }
+  .sort-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent-l); }
+
+  /* ── Source Toggle ────────────────────────────────────────────── */
+  .source-toggle {
+    display: flex; gap: 6px; padding: 8px 16px; border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .src-btn {
+    padding: 5px 14px; border-radius: 100px; font-size: 0.75rem; font-weight: 500;
+    border: 1px solid rgba(255,255,255,0.08); background: transparent;
+    color: var(--text-3); transition: var(--t); cursor: pointer;
+  }
+  .src-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent-l); }
+
+  /* ── Results Grid ─────────────────────────────────────────────── */
+  .results-meta {
+    padding: 12px 16px 4px;
+    font-size: 0.78rem; color: var(--text-3);
+  }
+  .results-meta strong { color: var(--text-2); }
+
+  .results-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px; padding: 10px 16px;
+  }
+  .results-grid .movie-card { width: 100%; }
+
+  /* ── List Mode (YTS) ──────────────────────────────────────────── */
+  .results-list { display: flex; flex-direction: column; gap: 10px; padding: 10px 16px; }
+  .list-card {
+    display: flex; gap: 12px; align-items: flex-start;
+    background: rgba(255,248,230,0.03); border: 1px solid rgba(255,255,255,0.06);
+    border-radius: var(--r-sm); padding: 10px; cursor: pointer;
+    transition: var(--t);
+  }
+  .list-card:hover { background: rgba(255,248,230,0.06); border-color: rgba(212,146,42,0.2); }
+  .list-poster { width: 60px; height: 90px; object-fit: cover; border-radius: 6px; flex-shrink: 0; background: var(--surface2); }
+  .list-info { flex: 1; min-width: 0; }
+  .list-title { font-size: 0.88rem; font-weight: 600; color: var(--text); margin-bottom: 4px; line-height: 1.3; }
+  .list-meta { font-size: 0.72rem; color: var(--text-3); margin-bottom: 6px; }
+  .list-rating { display: inline-flex; align-items: center; gap: 3px; font-size: 0.72rem; font-weight: 700; color: var(--accent-l); }
+  .list-rating svg { width: 10px; height: 10px; fill: var(--accent-l); }
+  .list-qualities { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
+  .list-q { font-size: 0.62rem; padding: 2px 7px; border-radius: 4px; background: rgba(212,146,42,0.1); color: var(--accent); border: 1px solid rgba(212,146,42,0.15); }
+
+  /* ── Empty ────────────────────────────────────────────────────── */
+  .no-results {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 12px; padding: 60px 24px; text-align: center;
+  }
+  .no-results-icon { font-size: 3rem; opacity: 0.2; }
+  .no-results-title { font-size: 1rem; font-weight: 600; }
+  .no-results-sub { font-size: 0.82rem; color: var(--text-3); line-height: 1.6; }
+
+  @media (min-width: 480px) {
+    .results-grid { grid-template-columns: repeat(4, 1fr); }
+  }
+  @media (min-width: 768px) {
+    .results-grid { grid-template-columns: repeat(5, 1fr); gap: 12px; padding: 12px 24px; }
+    .results-header, .sort-bar, .source-toggle { padding-left: 24px; padding-right: 24px; }
+    .results-meta, .results-list { padding-left: 24px; padding-right: 24px; }
+  }
+  </style>
+</head>
+<body>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+
+<div class="results-page">
+
+  <!-- Header -->
+  <div class="results-header">
+    <div class="results-search-row">
+      <button class="back-btn" onclick="history.back()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+      </button>
+      <div class="input-wrap" style="flex:1">
+        <span class="input-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        </span>
+        <input type="search" id="searchInput" placeholder="Search movies…" autocomplete="off"/>
+      </div>
+      <a href="/" class="logo" style="flex-shrink:0">
+        <svg class="logo-mark sm" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs><linearGradient id="lgr" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#f0b84a"/><stop offset="100%" stop-color="#b8722a"/></linearGradient></defs>
+          <path d="M20 3L36 20L20 37L4 20Z" stroke="url(#lgr)" stroke-width="1.5" fill="none"/>
+          <polygon points="16,14 28,20 16,26" fill="url(#lgr)"/>
+        </svg>
+      </a>
+    </div>
+  </div>
+
+  <!-- Source Toggle -->
+  <div class="source-toggle">
+    <button class="src-btn active" id="srcTmdb" onclick="setSource('tmdb')">🌐 All Movies</button>
+    <button class="src-btn" id="srcYts" onclick="setSource('yts')">⬇️ Downloadable Only</button>
+  </div>
+
+  <!-- Sort (shown for YTS) -->
+  <div class="sort-bar" id="sortBar" style="display:none">
+    <button class="sort-btn active" data-sort="rating" onclick="setSort('rating',this)">⭐ Rating</button>
+    <button class="sort-btn" data-sort="download_count" onclick="setSort('download_count',this)">📥 Popular</button>
+    <button class="sort-btn" data-sort="date_added" onclick="setSort('date_added',this)">🆕 Newest</button>
+    <button class="sort-btn" data-sort="year" onclick="setSort('year',this)">📅 Year</button>
+    <button class="sort-btn" data-sort="like_count" onclick="setSort('like_count',this)">❤️ Liked</button>
+  </div>
+
+  <!-- Results Meta -->
+  <div class="results-meta" id="resultsMeta"></div>
+
+  <!-- Results Container -->
+  <div id="resultsContainer"></div>
+
+  <!-- Loading -->
+  <div class="loading-state" id="loadingState" style="display:none">
+    <div class="spinner"></div>
+    <span>Searching…</span>
+  </div>
+
+</div>
+
+<!-- Bottom Nav -->
+<nav class="bottom-nav">
+  <a href="/" class="nav-item">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    Home
+  </a>
+  <button class="nav-item active">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    Search
+  </button>
+  <button class="nav-item" onclick="setSource('tmdb')">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+    Stream
+  </button>
+  <button class="nav-item" onclick="setSource('yts')">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    Download
+  </button>
+</nav>
+
+<!-- Toast -->
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+const IMG = 'https://image.tmdb.org/t/p';
+const params = new URLSearchParams(location.search);
+let currentQuery = params.get('q') || '';
+let currentSource = 'tmdb';
+let currentSort = 'rating';
+let searchTimer = null;
+
+const haptic = ms => navigator.vibrate?.(ms);
+function toast(msg) {
+  const wrap = document.getElementById('toastWrap');
+  const el = document.createElement('div'); el.className = 'toast'; el.textContent = msg;
+  wrap.appendChild(el); setTimeout(() => el.remove(), 3200);
+}
+
+const searchInput = document.getElementById('searchInput');
+searchInput.value = currentQuery;
+
+if (currentQuery) search();
+
+// ── Source / Sort ─────────────────────────────────────────────────
+function setSource(src) {
+  haptic([6]);
+  currentSource = src;
+  document.getElementById('srcTmdb').classList.toggle('active', src === 'tmdb');
+  document.getElementById('srcYts').classList.toggle('active', src === 'yts');
+  document.getElementById('sortBar').style.display = src === 'yts' ? 'flex' : 'none';
+  if (currentQuery) search();
+}
+
+function setSort(sort, btn) {
+  haptic([6]);
+  currentSort = sort;
+  document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  search();
+}
+
+// ── Search Input ──────────────────────────────────────────────────
+searchInput.addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    currentQuery = searchInput.value.trim();
+    if (currentQuery) {
+      history.replaceState(null, '', `?q=${encodeURIComponent(currentQuery)}`);
+      search();
+    } else {
+      document.getElementById('resultsContainer').innerHTML = '';
+      document.getElementById('resultsMeta').textContent = '';
+    }
+  }, 400);
+});
+
+searchInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    clearTimeout(searchTimer);
+    currentQuery = searchInput.value.trim();
+    if (currentQuery) search();
+  }
+});
+
+// ── Search ────────────────────────────────────────────────────────
+async function search() {
+  if (!currentQuery) return;
+  const q = currentQuery;
+  document.getElementById('loadingState').style.display = 'flex';
+  document.getElementById('resultsContainer').innerHTML = '';
+  document.getElementById('resultsMeta').textContent = '';
+  document.title = `"${q}" — SkyluxMovies`;
+
+  try {
+    if (currentSource === 'tmdb') {
+      await searchTMDB(q);
+    } else {
+      await searchYTS(q);
+    }
+  } catch (err) {
+    showError('Search failed. Check your connection.');
+  } finally {
+    document.getElementById('loadingState').style.display = 'none';
+  }
+}
+
+// ── TMDB Search ───────────────────────────────────────────────────
+async function searchTMDB(q) {
+  const res = await fetch(`/api/tmdb/search?q=${encodeURIComponent(q)}`);
+  const data = await res.json();
+  const results = (data.results || []).filter(m => m.poster_path);
+
+  if (!results.length) { showEmpty(q); return; }
+
+  document.getElementById('resultsMeta').innerHTML = `<strong>${results.length}</strong> movies found for "<strong>${q}</strong>"`;
+
+  const grid = document.createElement('div');
+  grid.className = 'results-grid';
+
+  results.forEach(m => {
+    const card = buildTMDBCard(m);
+    grid.appendChild(card);
+  });
+
+  document.getElementById('resultsContainer').appendChild(grid);
+}
+
+function buildTMDBCard(m) {
+  const card = document.createElement('div');
+  card.className = 'movie-card';
+  const poster = `${IMG}/w342${m.poster_path}`;
+  const rating = m.vote_average?.toFixed(1) || '';
+  const year = m.release_date?.substring(0,4) || '';
+
+  card.innerHTML = `
+    <img class="card-poster" src="${poster}" alt="${m.title}" loading="lazy"
+      onerror="this.style.background='var(--surface2)'"/>
+    ${rating ? `<div class="card-badge"><svg viewBox="0 0 24 24" width="8" height="8"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="currentColor"/></svg>${rating}</div>` : ''}
+    <div class="card-footer">
+      <div class="card-title">${m.title}</div>
+      <div class="card-meta">${year ? `<span class="card-year">${year}</span>` : ''}</div>
+    </div>
+  `;
+  card.addEventListener('click', () => {
+    haptic([8]);
+    window.location.href = `/movie.html?tmdb=${m.id}`;
+  });
+  return card;
+}
+
+// ── YTS Search ────────────────────────────────────────────────────
+async function searchYTS(q) {
+  const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&sort=${currentSort}`);
+  const data = await res.json();
+  const movies = data.data?.movies || [];
+
+  if (!movies.length) { showEmpty(q, 'yts'); return; }
+
+  document.getElementById('resultsMeta').innerHTML = `<strong>${movies.length}</strong> downloadable results for "<strong>${q}</strong>"`;
+
+  const list = document.createElement('div');
+  list.className = 'results-list';
+
+  movies.forEach(m => {
+    const card = document.createElement('div');
+    card.className = 'list-card';
+    const poster = m.medium_cover_image || m.small_cover_image || '';
+    const qualities = (m.torrents || []).map(t => t.quality);
+    const rating = parseFloat(m.rating) || 0;
+
+    card.innerHTML = `
+      <img class="list-poster" src="${poster}" alt="${m.title}" loading="lazy"
+        onerror="this.style.background='var(--surface2)';this.style.minHeight='90px'"/>
+      <div class="list-info">
+        <div class="list-title">${m.title_long || m.title}</div>
+        <div class="list-meta">${m.year} · ${m.genre || ''}</div>
+        ${rating ? `<div class="list-rating"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>${rating.toFixed(1)}</div>` : ''}
+        <div class="list-qualities">${qualities.map(q => `<span class="list-q">${q}</span>`).join('')}</div>
+      </div>
+    `;
+    card.addEventListener('click', () => {
+      haptic([8]);
+      window.location.href = `/movie.html?id=${m.id}`;
+    });
+    list.appendChild(card);
+  });
+
+  document.getElementById('resultsContainer').appendChild(list);
+}
+
+// ── Helpers ───────────────────────────────────────────────────────
+function showEmpty(q, src) {
+  document.getElementById('resultsMeta').textContent = '';
+  document.getElementById('resultsContainer').innerHTML = `
+    <div class="no-results">
+      <div class="no-results-icon">🔍</div>
+      <div class="no-results-title">No results for "${q}"</div>
+      <div class="no-results-sub">
+        ${src === 'yts' ? 'This title may not be available for download yet.<br>Try switching to "All Movies" for streaming.' : 'Try a different spelling or shorter title.'}
+      </div>
+      ${src === 'yts' ? `<button class="btn btn-outline btn-sm" onclick="setSource('tmdb')" style="margin-top:12px">Switch to All Movies</button>` : ''}
+    </div>`;
+}
+
+function showError(msg) {
+  document.getElementById('resultsContainer').innerHTML = `
+    <div class="no-results">
+      <div class="no-results-icon">⚠️</div>
+      <div class="no-results-title">Search Failed</div>
+      <div class="no-results-sub">${msg}</div>
+      <button class="btn btn-ghost btn-sm" onclick="search()" style="margin-top:12px">Try Again</button>
+    </div>`;
+}
+</script>
+<script src="/pwa.js"></script>
+</body>
+</html>
