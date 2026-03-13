@@ -1,0 +1,85 @@
+{
+  "name": "SkyluxMovies — Free HD Movie Streaming & Downloads",
+  "short_name": "SkyluxMovies",
+  "id": "com.skylux.skyluxmovies",
+  "description": "Stream and download free HD movies instantly. Browse trending, top rated, action, horror, sci-fi and more — no account required.",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "browser"],
+  "background_color": "#060709",
+  "theme_color": "#060709",
+  "orientation": "portrait-primary",
+  "lang": "en-US",
+  "dir": "ltr",
+  "categories": ["entertainment", "multimedia", "lifestyle"],
+  "iarc_rating_id": "e84b072d-71b3-4d3e-86ae-31a8ce4e53b7",
+  "icons": [
+    { "src": "/icons/icon-72.png",           "sizes": "72x72",   "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-96.png",           "sizes": "96x96",   "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-128.png",          "sizes": "128x128", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-144.png",          "sizes": "144x144", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-152.png",          "sizes": "152x152", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-192.png",          "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-384.png",          "sizes": "384x384", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png",          "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/desktop.png",
+      "sizes": "1280x800",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "SkyluxMovies desktop — browse and download free HD movies"
+    },
+    {
+      "src": "/screenshots/mobile.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "SkyluxMovies mobile — stream and download movies on the go"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Search Movies",
+      "short_name": "Search",
+      "url": "/results.html?q=&source=shortcut",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Trending Movies",
+      "short_name": "Trending",
+      "url": "/?source=shortcut#trending",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Top Rated",
+      "short_name": "Top Rated",
+      "url": "/results.html?sort=rating&source=shortcut",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "share_target": {
+    "action": "https://skyluxmovies.onrender.com/?share-target",
+    "method": "GET",
+    "params": { "title": "title", "text": "text", "url": "url" }
+  },
+  "protocol_handlers": [
+    { "protocol": "web+skylux", "url": "/?url=%s" }
+  ],
+  "related_applications": [
+    {
+      "platform": "webapp",
+      "url": "https://skyluxmovies.onrender.com/manifest.json"
+    }
+  ],
+  "scope_extensions": [
+    { "origin": "https://skyluxmovies.onrender.com" }
+  ],
+  "launch_handler": { "client_mode": ["focus-existing", "auto"] },
+  "edge_side_panel": { "preferred_width": 400 },
+  "prefer_related_applications": false
+}
