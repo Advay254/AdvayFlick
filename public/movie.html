@@ -168,6 +168,25 @@
   .install-overlay{display:none;position:fixed;inset:0;z-index:9999;background:rgba(6,7,9,0.93);backdrop-filter:blur(18px);align-items:center;justify-content:center;padding:22px;}
   .install-card{max-width:340px;width:100%;background:rgba(255,248,230,0.04);border:1px solid rgba(212,146,42,0.18);border-radius:20px;padding:26px 22px;text-align:center;box-shadow:0 18px 55px rgba(0,0,0,0.6);}
 
+
+  /* ── WebTorrent Player ─────────────────────────────────────────── */
+  #wtOverlay{display:none;position:fixed;inset:0;background:#000;z-index:10000;flex-direction:column;}
+  #wtOverlay.open{display:flex;}
+  .wt-topbar{padding:10px 14px;display:flex;align-items:center;gap:12px;flex-shrink:0;background:rgba(0,0,0,0.55);backdrop-filter:blur(10px);}
+  .wt-back{background:rgba(255,255,255,0.09);border:1px solid rgba(255,255,255,0.13);color:#fff;padding:7px 15px;border-radius:8px;font-size:0.85rem;cursor:pointer;font-family:'Outfit',sans-serif;transition:background 0.2s;}
+  .wt-back:hover,.wt-back:focus{background:rgba(255,255,255,0.18);outline:2px solid #7dd3fc;outline-offset:2px;}
+  #wtTitle{flex:1;color:#fff;font-size:0.95rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #wtQualityBadge{color:#f0b84a;font-size:0.75rem;font-weight:700;background:rgba(240,184,74,0.12);padding:3px 8px;border-radius:5px;flex-shrink:0;}
+  .wt-pbar{height:3px;background:rgba(255,255,255,0.07);flex-shrink:0;}
+  .wt-pfill{height:100%;background:linear-gradient(90deg,#f0b84a,#d4922a);width:0%;transition:width 1s linear;}
+  .wt-stage{flex:1;position:relative;display:flex;align-items:center;justify-content:center;background:#000;min-height:0;overflow:hidden;}
+  #wtVideo{width:100%;height:100%;max-height:100%;background:#000;display:none;}
+  #wtLoader{text-align:center;color:#fff;padding:32px 20px;}
+  .wt-spin{width:46px;height:46px;border:3px solid rgba(255,255,255,0.1);border-top-color:#f0b84a;border-radius:50%;animation:wtSpin 0.85s linear infinite;margin:0 auto 16px;}
+  @keyframes wtSpin{to{transform:rotate(360deg)}}
+  #wtStatus{font-size:0.92rem;color:#ccc;margin-bottom:8px;line-height:1.5;}
+  #wtPeers{font-size:0.76rem;color:#666;min-height:18px;}
+  .wt-err{color:#f87171;font-size:0.82rem;line-height:1.5;}
   /* Page loader */
   .page-loader{position:fixed;inset:0;z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:var(--bg);}
   </style>
@@ -274,15 +293,15 @@
       <div class="splayer-header" id="splayerHeader" onclick="toggleSplayer()">
         <span style="font-size:1.05rem">📱</span>
         <div style="flex:1">
-          <p style="font-size:0.86rem;font-weight:600;color:var(--accent-l);margin:0">How to Stream & Download</p>
-          <p style="font-size:0.68rem;color:var(--text-3);margin:0">SPlayer — Free app · No ads · Full control</p>
+          <p style="font-size:0.86rem;font-weight:600;color:var(--accent-l);margin:0">How to Download</p>
+          <p style="font-size:0.68rem;color:var(--text-3);margin:0">SPlayer handles downloads · Free app · No ads</p>
         </div>
         <a href="https://play.google.com/store/apps/details?id=com.ttee.leeplayer" target="_blank" onclick="event.stopPropagation()"
           style="background:linear-gradient(135deg,#f0b84a,#d4922a);color:#060709;font-weight:700;font-size:0.68rem;padding:6px 10px;border-radius:7px;text-decoration:none;flex-shrink:0">Install</a>
         <svg id="splayerChevron" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;transition:transform 0.28s"><path d="m6 9 6 6 6-6"/></svg>
       </div>
       <div class="splayer-body" id="splayerBody">
-        <div class="splayer-step"><div class="step-num">1</div><p class="step-text">Tap <strong>Download</strong> or <strong>Stream</strong> below. SPlayer opens automatically with the movie loaded.</p></div>
+        <div class="splayer-step"><div class="step-num">1</div><p class="step-text">Tap <strong>Download</strong> below. SPlayer opens automatically. <em style="color:var(--text-3)">To watch without downloading, use Watch Now — no app needed.</em></p></div>
         <div class="splayer-step"><div class="step-num">2</div><p class="step-text">In SPlayer's "Add torrent" screen: <strong style="color:var(--success)">✅ Check "Sequential download"</strong> — this lets you watch while downloading.</p></div>
         <div class="splayer-step"><div class="step-num">3</div><p class="step-text"><strong style="color:var(--success)">✅ Keep "Start torrent" checked</strong> — starts immediately. Tap the <strong>✓ checkmark</strong> top right to confirm.</p></div>
         <div class="splayer-step" style="margin-bottom:0"><div class="step-num">4</div><p class="step-text">For streaming: tap <strong>Streaming</strong> button in SPlayer's download screen once it starts buffering.</p></div>
@@ -316,10 +335,10 @@
         </button>
         <button class="btn btn-ghost" onclick="doAction('stream')">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-          Stream
+          Watch Now
         </button>
       </div>
-      <p class="action-note">Both open SPlayer · Stream = watch while downloading · No browser ads · Your device, your control</p>
+      <p class="action-note">Watch Now streams in your browser · Download sends magnet to your torrent app</p>
     </div>
 
 
@@ -375,7 +394,23 @@
 
 <div class="toast-wrap" id="toastWrap"></div>
 
-
+<!-- ── WebTorrent Player Overlay ──────────────────────────────────── -->
+<div id="wtOverlay" role="dialog" aria-modal="true" aria-label="Movie player">
+  <div class="wt-topbar">
+    <button class="wt-back" id="wtClose" onclick="closePlayer()" tabindex="0" aria-label="Close player">&#8592; Back</button>
+    <span id="wtTitle"></span>
+    <span id="wtQualityBadge"></span>
+  </div>
+  <div class="wt-pbar"><div class="wt-pfill" id="wtPfill"></div></div>
+  <div class="wt-stage">
+    <video id="wtVideo" controls autoplay playsinline></video>
+    <div id="wtLoader">
+      <div class="wt-spin"></div>
+      <div id="wtStatus">Finding peers&#8230;</div>
+      <div id="wtPeers"></div>
+    </div>
+  </div>
+</div>
 
 <script>
 const SPLAYER = 'com.ttee.leeplayer';
@@ -483,7 +518,7 @@ function onQualityChange(){
       </div>
       <p class="seed-desc">${si.desc}</p>
       <div style="margin-top:7px;padding:7px 9px;background:rgba(212,146,42,0.05);border-radius:6px;border-left:2px solid var(--accent)">
-        <p style="font-size:0.69rem;color:var(--text-3);line-height:1.5;margin:0">💡 <strong style="color:var(--success)">Check "Sequential download"</strong> in SPlayer to watch while downloading.</p>
+        <p style="font-size:0.69rem;color:var(--text-3);line-height:1.5;margin:0">💡 <strong style="color:var(--success)">Watch Now</strong> streams right here in the browser. Use Download to save via SPlayer.</p>
       </div>
     </div>`;
   qinfo.classList.add('show');
@@ -491,7 +526,7 @@ function onQualityChange(){
   else{actionSec.classList.add('show');if(seeds<=4)toast('⚠️ Very few peers — may be slow');}
 }
 
-// ── Action (download / stream both use SPlayer) ───────────────────
+// ── Action ────────────────────────────────────────────────────────
 async function doAction(mode){
   if(!selectedTorrent){toast('Select a quality first');return;}
   haptic([10,30,10]);
@@ -499,6 +534,7 @@ async function doAction(mode){
   let hash=selectedTorrent.hash;
   const quality=selectedTorrent.quality;
   const type=selectedTorrent.type||'web';
+  // Refresh hash from API in case YTS updated it
   const apiUrls=[
     `${YTS_API_PRIMARY}/movie_details.json?movie_id=${movieData.id}&with_images=false&with_cast=false`,
     `${YTS_API_FALLBACK}/movie_details.json?movie_id=${movieData.id}&with_images=false&with_cast=false`
@@ -516,15 +552,115 @@ async function doAction(mode){
     }catch(e){continue;}
   }
   const magnet=buildMagnet(hash,title);
-  const intent=`intent:${magnet}#Intent;package=${SPLAYER};end`;
-  const onBlur=()=>clearTimeout(fallback);
-  window.addEventListener('blur',onBlur,{once:true});
-  const fallback=setTimeout(()=>{
-    window.removeEventListener('blur',onBlur);
-    document.getElementById('installOverlay').style.display='flex';
-  },2000);
-  window.location.href=intent;
-  toast(mode==='stream'?'📲 Opening SPlayer to stream…':'📲 Opening SPlayer to download…');
+  if(mode==='stream'){
+    openPlayer(magnet,title,quality);
+  }else{
+    window.location.href=magnet;
+    toast('📥 Opening your torrent app…');
+  }
+}
+
+// ── WebTorrent Player ─────────────────────────────────────────────
+let _wt=null;
+
+function openPlayer(magnet,title,quality){
+  history.pushState({wtPlayer:true},'');
+  const ov=document.getElementById('wtOverlay');
+  ov.classList.add('open');
+  document.body.style.overflow='hidden';
+  document.getElementById('wtTitle').textContent=title;
+  document.getElementById('wtQualityBadge').textContent=quality||'';
+  document.getElementById('wtLoader').style.display='block';
+  document.getElementById('wtStatus').textContent='Finding peers…';
+  document.getElementById('wtPeers').textContent='';
+  document.getElementById('wtPfill').style.width='0%';
+  const v=document.getElementById('wtVideo');
+  v.style.display='none';v.src='';
+  if(window.WebTorrent){
+    _startStream(magnet);
+  }else{
+    document.getElementById('wtStatus').textContent='Loading player…';
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/webtorrent@2.1.30/webtorrent.min.js';
+    s.onload=()=>_startStream(magnet);
+    s.onerror=()=>{
+      document.getElementById('wtStatus').textContent='Could not load player. Check your connection.';
+    };
+    document.head.appendChild(s);
+  }
+}
+
+function _startStream(magnet){
+  if(_wt){try{_wt.destroy();}catch(_){} _wt=null;}
+  let client;
+  try{client=new WebTorrent();}catch(e){
+    document.getElementById('wtStatus').textContent='Player failed to initialise: '+e.message;
+    return;
+  }
+  _wt=client;
+  _wt.on('error',err=>{
+    const msg=(err&&err.message)||String(err);
+    document.getElementById('wtStatus').innerHTML='<span class="wt-err">⚠️ '+msg+'</span>';
+  });
+  _wt.add(magnet,torrent=>{
+    // Largest file = video; skip subs/nfo
+    const file=torrent.files.reduce((a,b)=>a.length>b.length?a:b);
+    const video=document.getElementById('wtVideo');
+    document.getElementById('wtStatus').textContent='Buffering — '+file.name;
+
+    // renderTo uses MediaSource for true streaming (no full download needed)
+    file.renderTo(video,{autoplay:true},err=>{
+      if(err){
+        // MSE not available on this device — fall back to blob URL
+        file.getBlobURL((err2,url)=>{
+          if(!err2){
+            video.src=url;
+            video.play().catch(()=>{});
+            _showVideo(video);
+          }else{
+            document.getElementById('wtStatus').innerHTML=
+              '<span class="wt-err">Playback failed. Try the Download button instead.</span>';
+          }
+        });
+        return;
+      }
+      _showVideo(video);
+    });
+
+    // Progress ticker
+    const iv=setInterval(()=>{
+      if(!_wt){clearInterval(iv);return;}
+      const pct=(torrent.progress*100).toFixed(1);
+      const dl=_fmtBytes(torrent.downloadSpeed);
+      const peers=torrent.numPeers;
+      document.getElementById('wtPeers').textContent=
+        pct+'% · '+dl+'/s · '+peers+' peer'+(peers===1?'':'s');
+      document.getElementById('wtPfill').style.width=pct+'%';
+      if(torrent.progress>=1)clearInterval(iv);
+    },1500);
+  });
+}
+
+function _showVideo(v){
+  document.getElementById('wtLoader').style.display='none';
+  v.style.display='block';
+  v.focus();
+}
+
+function closePlayer(){
+  const ov=document.getElementById('wtOverlay');
+  if(!ov.classList.contains('open'))return;
+  ov.classList.remove('open');
+  document.body.style.overflow='';
+  const v=document.getElementById('wtVideo');
+  v.pause();v.src='';v.load();
+  if(_wt){try{_wt.destroy();}catch(_){}_wt=null;}
+}
+
+function _fmtBytes(b){
+  if(b<1024)return b+' B';
+  if(b<1048576)return (b/1024).toFixed(1)+' KB';
+  return (b/1048576).toFixed(1)+' MB';
 }
 
 // ── Render ────────────────────────────────────────────────────────
@@ -721,6 +857,13 @@ function updateMovieSEO(m) {
     schemaEl.textContent = JSON.stringify(schema, null, 2);
   }
 }
+
+// Back button / OS back gesture closes the player
+window.addEventListener('popstate',()=>{
+  if(document.getElementById('wtOverlay').classList.contains('open')){
+    closePlayer();
+  }
+});
 
 init();
 </script>
