@@ -1,6 +1,6 @@
 {
   "name": "skyluxmovies",
-  "version": "3.0.0",
+  "version": "4.1.0",
   "description": "Stream and download free movies — SkyluxMovies",
   "main": "server.js",
   "scripts": {
@@ -17,6 +17,11 @@
   "engines": {
     "node": ">=18"
   },
-  "keywords": ["movies", "streaming", "download", "pwa"],
+  "keywords": [
+    "movies",
+    "streaming",
+    "download",
+    "pwa"
+  ],
   "license": "MIT"
 }

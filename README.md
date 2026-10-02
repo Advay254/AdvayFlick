@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://img.shields.io/badge/SkyluxMovies-v4.0.0-d4922a?style=for-the-badge&logo=film&logoColor=white" alt="SkyluxMovies v4.0.0" />
+<img src="https://img.shields.io/badge/SkyluxMovies-v4.1.0-d4922a?style=for-the-badge&logo=film&logoColor=white" alt="SkyluxMovies v4.1.0" />
 
 # 🎬 SkyluxMovies
 
@@ -31,6 +31,7 @@
 - 🗂️ **14 genre tabs** — tap any genre for a full-screen filtered view
 - 🖼️ **Category visual cards** — genre thumbnails built from real movie posters
 - 🔍 **Live search** — instant results dropdown as you type
+- ▶️ **In-browser streaming** — "Watch Now" plays the movie directly in the page via WebTorrent, no external app required
 - 🎞️ **Movie detail page** — backdrop blur, cast circles, IMDb rating ring, trailer link, quality picker, similar movies grid
 - ⚡ **Smart rate limiting** — 3-tier system: image proxy unrestricted, search 30/min, API 600/15min
 - 📱 **Full PWA** — installable, Background Sync, Periodic Sync, Push Notifications handler, auto-updates on deploy
@@ -196,7 +197,8 @@ Movie detail page renders
   → Trailer button opens YouTube directly (avoids embed Error 153)
   → Similar movies in 3-column grid (18 titles)
         ↓
-Browser opens SPlayer → torrent streams or downloads natively on device
+Watch Now  → in-browser WebTorrent player (streams in the page, no app)
+Download   → magnet link handed to whatever torrent app is on the device
 ```
 
 > **Why image proxy?** YTS CDN applies hotlink protection. The `/api/img?u=` proxy strips the Referer header server-side, bypassing the block reliably. The proxy accepts `yts.bz`, `yts.mx`, and `img.yts.mx` mirror domains.
@@ -264,6 +266,23 @@ https://skyluxmovies.onrender.com/sitemap.xml
 ```
 
 **Target keywords:** `free movie download no account` · `download HD movies free` · `watch movies online free no sign up` · `free 4K movie download` · `download action movies free` · `stream movies free SPlayer`
+
+---
+
+## 📜 Changelog
+
+### v4.1.0 — In-browser streaming (Chunk 1 of the Smart TV upgrade)
+- Added a WebTorrent-based player directly in `movie.html`. The **Watch Now** button (previously "Stream") now opens a full-screen overlay and plays the movie in the browser — no SPlayer or other external app needed.
+- **Download** is unchanged: it still hands the magnet link to whichever torrent app is on the device.
+- Back button / back gesture closes the player (wired through `history.pushState` + `popstate`) instead of leaving the app.
+- If the device's browser doesn't support MediaSource Extensions, the player falls back to a blob-URL download-then-play approach automatically.
+- WebTorrent's library is lazy-loaded from a CDN only when Watch Now is tapped, so page weight is unaffected for people who only download.
+- SPlayer guide and copy updated to describe it as the download path only, not the only way to watch.
+- **Flagged, not changed:** `README.md`'s version badge said v4.0.0 while `package.json` said 3.0.0. Per your rule, the higher number (4.0.0) was treated as current and this release bumped to 4.1.0 — confirm that's the version lineage you want.
+- **Flagged, not changed:** your delivery instructions say to root the zip under a folder named `SkyluxMoxies/`, but the actual repo/package is named `AdvayFlick` / `skyluxmovies`. This delivery uses `SkyluxMoxies/` as instructed — tell me if you'd rather it match the real repo name going forward.
+- **Known gap (v4.1.0):** `GET /api/suggestions/:id` returns a 500 for an invalid id instead of a handled 4xx (pre-existing, not introduced by this change — found during error-path testing).
+- **Known gap (v4.1.0):** unmatched static routes (e.g. a typo'd `.html` path) return 200 instead of a 404 (pre-existing Express static behavior, not introduced by this change).
+- **Not tested:** real peer-to-peer playback on an actual phone/TV browser and actual magnet hashes with live seeders — my sandbox has no outbound network access to trackers/peers. What *was* tested for real: the server boots, every route returns the right status code under real HTTP requests (including the error paths above), and the full player state machine (open → buffering → playing → progress updates → close, plus the back-button and MSE-unsupported fallback paths) against the exact code shipped, using jsdom with WebTorrent's network layer mocked out.
 
 ---
 
