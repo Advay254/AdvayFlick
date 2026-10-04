@@ -176,7 +176,6 @@
   .wt-back{background:rgba(255,255,255,0.09);border:1px solid rgba(255,255,255,0.13);color:#fff;padding:7px 15px;border-radius:8px;font-size:0.85rem;cursor:pointer;font-family:'Outfit',sans-serif;transition:background 0.2s;}
   .wt-back:hover,.wt-back:focus{background:rgba(255,255,255,0.18);outline:2px solid #7dd3fc;outline-offset:2px;}
   #wtTitle{flex:1;color:#fff;font-size:0.95rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  #wtQualityBadge{color:#f0b84a;font-size:0.75rem;font-weight:700;background:rgba(240,184,74,0.12);padding:3px 8px;border-radius:5px;flex-shrink:0;}
   .wt-pbar{height:3px;background:rgba(255,255,255,0.07);flex-shrink:0;}
   .wt-pfill{height:100%;background:linear-gradient(90deg,#f0b84a,#d4922a);width:0%;transition:width 1s linear;}
   .wt-stage{flex:1;position:relative;display:flex;align-items:center;justify-content:center;background:#000;min-height:0;overflow:hidden;}
@@ -186,7 +185,14 @@
   @keyframes wtSpin{to{transform:rotate(360deg)}}
   #wtStatus{font-size:0.92rem;color:#ccc;margin-bottom:8px;line-height:1.5;}
   #wtPeers{font-size:0.76rem;color:#666;min-height:18px;}
+  #wtSize{font-size:0.74rem;color:#555;margin-top:2px;min-height:16px;}
   .wt-err{color:#f87171;font-size:0.82rem;line-height:1.5;}
+  .wt-hint{color:#f0b84a;font-size:0.76rem;margin-top:10px;line-height:1.5;display:none;}
+  .wt-hint.show{display:block;}
+  .wt-qsel{appearance:none;-webkit-appearance:none;background:rgba(240,184,74,0.12);color:#f0b84a;font-size:0.75rem;font-weight:700;border:1px solid rgba(240,184,74,0.25);border-radius:6px;padding:5px 24px 5px 9px;flex-shrink:0;cursor:pointer;font-family:'Outfit',sans-serif;background-image:url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f0b84a' stroke-width='3'%3e%3cpath d='m6 9 6 6 6-6'/%3e%3c/svg%3e");background-repeat:no-repeat;background-position:right 6px center;background-size:11px;}
+  .wt-qsel:focus{outline:2px solid #7dd3fc;outline-offset:2px;}
+  .wt-qsel option{background:#1a1a1a;color:#fff;}
+  .wt-switching{opacity:0.5;pointer-events:none;}
   /* Page loader */
   .page-loader{position:fixed;inset:0;z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:var(--bg);}
   </style>
@@ -399,7 +405,7 @@
   <div class="wt-topbar">
     <button class="wt-back" id="wtClose" onclick="closePlayer()" tabindex="0" aria-label="Close player">&#8592; Back</button>
     <span id="wtTitle"></span>
-    <span id="wtQualityBadge"></span>
+    <select id="wtQualitySelect" class="wt-qsel" onchange="onPlayerQualityChange()" aria-label="Switch quality"></select>
   </div>
   <div class="wt-pbar"><div class="wt-pfill" id="wtPfill"></div></div>
   <div class="wt-stage">
@@ -408,6 +414,8 @@
       <div class="wt-spin"></div>
       <div id="wtStatus">Finding peers&#8230;</div>
       <div id="wtPeers"></div>
+      <div id="wtSize"></div>
+      <div class="wt-hint" id="wtHint">Taking a while? Try a different quality above — some releases have more peers than others.</div>
     </div>
   </div>
 </div>
@@ -553,7 +561,8 @@ async function doAction(mode){
   }
   const magnet=buildMagnet(hash,title);
   if(mode==='stream'){
-    openPlayer(magnet,title,quality);
+    const idx=(movieData.torrents||[]).indexOf(selectedTorrent);
+    openPlayer(magnet,title,quality,idx);
   }else{
     window.location.href=magnet;
     toast('📥 Opening your torrent app…');
@@ -562,18 +571,34 @@ async function doAction(mode){
 
 // ── WebTorrent Player ─────────────────────────────────────────────
 let _wt=null;
+let _wtTicker=null;
+let _wtTorrent=null;
+let _wtTitle='';
+let _wtTorrentIdx=-1;
+let _wtStartedAt=0;
 
-function openPlayer(magnet,title,quality){
+function _populateQualitySelect(selectedIdx){
+  const sel=document.getElementById('wtQualitySelect');
+  sel.innerHTML='';
+  (movieData?.torrents||[]).forEach((t,i)=>{
+    const opt=document.createElement('option');
+    opt.value=i;
+    opt.textContent=`${t.quality} (${t.type||'web'}) · ${t.size}`;
+    if(i===selectedIdx)opt.selected=true;
+    sel.appendChild(opt);
+  });
+}
+
+function openPlayer(magnet,title,quality,torrentIdx){
   history.pushState({wtPlayer:true},'');
+  _wtTitle=title;
+  _wtTorrentIdx=typeof torrentIdx==='number'?torrentIdx:-1;
   const ov=document.getElementById('wtOverlay');
   ov.classList.add('open');
   document.body.style.overflow='hidden';
   document.getElementById('wtTitle').textContent=title;
-  document.getElementById('wtQualityBadge').textContent=quality||'';
-  document.getElementById('wtLoader').style.display='block';
-  document.getElementById('wtStatus').textContent='Finding peers…';
-  document.getElementById('wtPeers').textContent='';
-  document.getElementById('wtPfill').style.width='0%';
+  _populateQualitySelect(_wtTorrentIdx);
+  _resetLoaderUI('Finding peers…');
   const v=document.getElementById('wtVideo');
   v.style.display='none';v.src='';
   if(window.WebTorrent){
@@ -590,8 +615,64 @@ function openPlayer(magnet,title,quality){
   }
 }
 
+// Switch quality mid-playback without closing the overlay
+async function onPlayerQualityChange(){
+  const sel=document.getElementById('wtQualitySelect');
+  const idx=parseInt(sel.value);
+  if(isNaN(idx)||!movieData?.torrents?.[idx])return;
+  const t=movieData.torrents[idx];
+  if((t.seeds||0)===0){
+    toast('⛔ No peers on that quality — try another');
+    _populateQualitySelect(_wtTorrentIdx); // revert selection
+    return;
+  }
+  haptic([8]);
+  _wtTorrentIdx=idx;
+  selectedTorrent=t; // keep the page's own quality picker in sync
+  const mainSel=document.getElementById('qualitySelect');
+  if(mainSel){mainSel.value=idx;onQualityChange();}
+
+  const stage=document.querySelector('.wt-stage');
+  stage.classList.add('wt-switching');
+  _resetLoaderUI('Switching to '+t.quality+'…');
+  document.getElementById('wtVideo').style.display='none';
+
+  let hash=t.hash;
+  const apiUrls=[
+    `${YTS_API_PRIMARY}/movie_details.json?movie_id=${movieData.id}&with_images=false&with_cast=false`,
+    `${YTS_API_FALLBACK}/movie_details.json?movie_id=${movieData.id}&with_images=false&with_cast=false`
+  ];
+  for(const url of apiUrls){
+    try{
+      const r=await fetch(url,{signal:AbortSignal.timeout(6000)});
+      if(!r.ok)continue;
+      const d=await r.json();
+      const torrents=d?.data?.movie?.torrents||[];
+      const match=torrents.find(x=>x.quality===t.quality&&(x.type||'web')===(t.type||'web'))
+                ||torrents.find(x=>x.quality===t.quality)
+                ||torrents[0];
+      if(match?.hash){hash=match.hash;break;}
+    }catch(e){continue;}
+  }
+  const magnet=buildMagnet(hash,_wtTitle);
+  stage.classList.remove('wt-switching');
+  _startStream(magnet);
+}
+
+function _resetLoaderUI(statusText){
+  document.getElementById('wtLoader').style.display='block';
+  document.getElementById('wtStatus').textContent=statusText;
+  document.getElementById('wtPeers').textContent='';
+  document.getElementById('wtSize').textContent='';
+  document.getElementById('wtPfill').style.width='0%';
+  document.getElementById('wtHint').classList.remove('show');
+}
+
 function _startStream(magnet){
+  if(_wtTicker){clearInterval(_wtTicker);_wtTicker=null;}
   if(_wt){try{_wt.destroy();}catch(_){} _wt=null;}
+  _wtTorrent=null;
+  _wtStartedAt=Date.now();
   let client;
   try{client=new WebTorrent();}catch(e){
     document.getElementById('wtStatus').textContent='Player failed to initialise: '+e.message;
@@ -603,6 +684,7 @@ function _startStream(magnet){
     document.getElementById('wtStatus').innerHTML='<span class="wt-err">⚠️ '+msg+'</span>';
   });
   _wt.add(magnet,torrent=>{
+    _wtTorrent=torrent;
     // Largest file = video; skip subs/nfo
     const file=torrent.files.reduce((a,b)=>a.length>b.length?a:b);
     const video=document.getElementById('wtVideo');
@@ -627,16 +709,26 @@ function _startStream(magnet){
       _showVideo(video);
     });
 
-    // Progress ticker
-    const iv=setInterval(()=>{
-      if(!_wt){clearInterval(iv);return;}
+    // Progress ticker — updates speed/peers/size and watches for a stall
+    _wtTicker=setInterval(()=>{
+      if(!_wt||_wtTorrent!==torrent){clearInterval(_wtTicker);return;}
       const pct=(torrent.progress*100).toFixed(1);
       const dl=_fmtBytes(torrent.downloadSpeed);
       const peers=torrent.numPeers;
       document.getElementById('wtPeers').textContent=
         pct+'% · '+dl+'/s · '+peers+' peer'+(peers===1?'':'s');
       document.getElementById('wtPfill').style.width=pct+'%';
-      if(torrent.progress>=1)clearInterval(iv);
+      document.getElementById('wtSize').textContent=
+        _fmtBytes(torrent.downloaded)+' of '+_fmtBytes(torrent.length);
+
+      const elapsed=Date.now()-_wtStartedAt;
+      const hint=document.getElementById('wtHint');
+      if(elapsed>15000&&torrent.progress<0.02&&peers===0){
+        hint.classList.add('show');
+      }else{
+        hint.classList.remove('show');
+      }
+      if(torrent.progress>=1)clearInterval(_wtTicker);
     },1500);
   });
 }
@@ -654,14 +746,19 @@ function closePlayer(){
   document.body.style.overflow='';
   const v=document.getElementById('wtVideo');
   v.pause();v.src='';v.load();
+  if(_wtTicker){clearInterval(_wtTicker);_wtTicker=null;}
   if(_wt){try{_wt.destroy();}catch(_){}_wt=null;}
+  _wtTorrent=null;
 }
 
 function _fmtBytes(b){
+  if(!b||b<0)return '0 B';
   if(b<1024)return b+' B';
   if(b<1048576)return (b/1024).toFixed(1)+' KB';
-  return (b/1048576).toFixed(1)+' MB';
+  if(b<1073741824)return (b/1048576).toFixed(1)+' MB';
+  return (b/1073741824).toFixed(2)+' GB';
 }
+
 
 // ── Render ────────────────────────────────────────────────────────
 function renderMovie(m){
