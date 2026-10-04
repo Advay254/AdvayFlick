@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://img.shields.io/badge/SkyluxMovies-v4.1.0-d4922a?style=for-the-badge&logo=film&logoColor=white" alt="SkyluxMovies v4.1.0" />
+<img src="https://img.shields.io/badge/SkyluxMovies-v4.2.0-d4922a?style=for-the-badge&logo=film&logoColor=white" alt="SkyluxMovies v4.2.0" />
 
 # 🎬 SkyluxMovies
 
@@ -270,6 +270,17 @@ https://skyluxmovies.onrender.com/sitemap.xml
 ---
 
 ## 📜 Changelog
+
+### v4.2.0 — Player polish: quality switching + progress detail (Chunk 2 of the Smart TV upgrade)
+- Added a quality selector inside the player overlay itself. You can now switch between 720p/1080p/4K **mid-stream** without closing the player — it tears down the current torrent and starts the new one in place.
+- Switching quality also keeps the page's own quality picker (the one below the poster) in sync, so if you close the player afterward, it reflects whatever quality you ended up watching.
+- Picking a quality with 0 seeds in the in-player selector is now rejected with a toast instead of silently starting a dead stream, and the selector reverts to the quality that's actually playing.
+- Progress readout now also shows downloaded size vs. total size (e.g. "340 MB of 2.1 GB"), not just percentage/speed/peers.
+- Added a stall hint: if 15+ seconds pass with 0 peers and under 2% progress, a message appears suggesting a different quality. It clears automatically once peers show up.
+- `_fmtBytes` now handles gigabyte-scale numbers properly (previously topped out at MB formatting).
+- Internal: the progress ticker now checks it's still ticking for the *current* torrent before updating the UI, so a rapid quality switch can't have an old timer overwrite the new stream's numbers.
+- **Flagged, not changed:** same version-lineage note as v4.1.0 — carried forward.
+- **Not tested:** same real-network caveat as v4.1.0 — real peer-to-peer playback and real quality-switch-under-load weren't tested (no tracker/peer access in this sandbox). What *was* tested for real: the full quality-switch state machine (open with N qualities → switch → old client destroyed → new stream starts with correct hash → page picker synced; 0-seed quality rejected and selection reverts) against the exact shipped code via jsdom, plus a full re-run of all Chunk 1 tests against this version to confirm no regressions. Server boot + HTTP checks also re-run clean.
 
 ### v4.1.0 — In-browser streaming (Chunk 1 of the Smart TV upgrade)
 - Added a WebTorrent-based player directly in `movie.html`. The **Watch Now** button (previously "Stream") now opens a full-screen overlay and plays the movie in the browser — no SPlayer or other external app needed.
